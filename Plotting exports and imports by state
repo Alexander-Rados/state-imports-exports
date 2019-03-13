@@ -1,0 +1,51 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import datetime as dt
+import seaborn as sns
+import numpy as np   
+import patsy                         
+import statsmodels.api as sm        
+import statsmodels.formula.api as smf
+import geopandas
+from shapely.geometry import Point, LineString        
+import matplotlib.pyplot as plt
+exports = pd.read_csv('exports_by_state_commodity_2002_2017.csv', header=3, usecols=[0,1,3,4], names=['state', 'commodity', 'time', 'total exports value ($US)'], thousands = ',')
+imports = pd.read_csv('imports_by_state_commodity_2008_2017.csv', header=3, usecols=[0,1,3,4], names=['state', 'commodity', 'time', 'total imports value ($US)'], thousands = ',')
+imports_exports = pd.merge(left=imports, right=exports, on=['state', 'commodity', 'time'], how='inner')
+state_codes = pd.read_csv('state_codes.csv', usecols=[0,1], names=['state', 'postal'])
+state_codes.drop(0, inplace=True)
+imports_exports_state_codes = pd.merge(left=imports_exports, right=state_codes, on=['state'], how='inner')
+imports_exports_state_codes['total imports value ($US)'] = pd.to_numeric(imports_exports_state_codes['total imports value ($US)'])
+imports_exports_state_codes['total exports value ($US)'] = pd.to_numeric(imports_exports_state_codes['total exports value ($US)'])
+imports_exports_state_codes['net_exports'] = (imports_exports_state_codes['total exports value ($US)']) - (imports_exports_state_codes['total imports value ($US)'])
+imports_exports_state_codes['total imports value ($US)'] = pd.to_numeric(imports_exports_state_codes['total imports value ($US)'])
+imports_exports_state_codes['total exports value ($US)'] = pd.to_numeric(imports_exports_state_codes['total exports value ($US)'])
+imports_exports_state_codes['net_exports'] = (imports_exports_state_codes['total exports value ($US)']) - (imports_exports_state_codes['total imports value ($US)'])
+imports_exports_state_codes['log_exports'] = (np.log10(imports_exports_state_codes['total exports value ($US)']))
+imports_exports_state_codes['log_imports'] = (np.log10(imports_exports_state_codes['total imports value ($US)']))
+imports_exports_state_codes.head(5)
+imports_exports_state_codes = imports_exports_state_codes[imports_exports_state_codes['time']==2017]
+imports_exports_state_codes = imports_exports_state_codes[imports_exports_state_codes['commodity']=='111 Agricultural Products']
+imports_exports_state_codes['net_log_exports'] = (imports_exports_state_codes['log_exports'])/(imports_exports_state_codes['log_imports'])
+above = imports_exports_state_codes[imports_exports_state_codes['net_log_exports']>1]
+below = imports_exports_state_codes[imports_exports_state_codes['net_log_exports']<1]
+states_to_label = ['OH', 'WI', 'CA', 'TX', 'NY', 'VI', 'DC', 'OK', 'LA', 'RI']
+states_to_label = imports_exports_state_codes[(imports_exports_state_codes['postal']=='OH')|(imports_exports_state_codes['postal']=='WI')|
+                                             (imports_exports_state_codes['postal']=='CA')|(imports_exports_state_codes['postal']=='TX')|
+                                             (imports_exports_state_codes['postal']=='NY')|(imports_exports_state_codes['postal']=='DC')|
+                                             (imports_exports_state_codes['postal']=='VI')|(imports_exports_state_codes['postal']=='OK')|
+                                             (imports_exports_state_codes['postal']=='LA')|(imports_exports_state_codes['postal']=='RI')]
+fig, ax = plt.subplots(figsize=(10,5))
+ax.scatter(above['log_imports'], above['log_exports'], marker='o', facecolors='none', edgecolor='blue')
+ax.scatter(below['log_imports'], below['log_exports'], marker='s', facecolors='none', edgecolor='red')
+ax.set_title('Log imports to exports for each state' )
+ax.set_ylabel('Log exports')
+ax.set_xlabel('Log imports') 
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+plt.plot([5, 11], [5, 11], color = 'black', dashes=[6, 2])
+plt.ylim(5, 11)
+plt.xlim(5, 11)                              
+for x, y, label in zip(states_to_label['log_imports'], states_to_label['log_exports'], states_to_label['postal']):
+    ax.annotate(label, xy=(x,y), xytext=(1.5,1.5), textcoords='offset points')
+plt.show()
